@@ -10,6 +10,8 @@ from channels.layers import get_channel_layer
 
 from challenges.models import Challenge
 
+from django.utils import timezone
+
 @api_view(['POST'])
 def create_room(request):
     serializer = RoomSerializer(data=request.data)
@@ -46,6 +48,7 @@ def start_round(request):
 
     room.current_round += 1
     room.game_state = "ROUND_ACTIVE"
+    room.round_started_at = timezone.now()
     room.save()
 
     channel_layer = get_channel_layer()
@@ -57,7 +60,8 @@ def start_round(request):
             "title": challenge.title,
             "description": challenge.description,
             "type": challenge.challenge_type,
-            "duration": challenge.duration
+            "duration": challenge.duration,
+            "started_at": room.round_started_at.isoformat()
         }
     }
 
