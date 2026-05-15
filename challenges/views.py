@@ -1,9 +1,13 @@
+import cloudinary.uploader
+
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
 from rooms.models import Room
-from .models import Challenge
+from teams.models import Team
+
+from .models import Challenge, Submission
 from .serializers import ChallengeSerializer
 
 
@@ -66,3 +70,34 @@ def get_active_challenge(request, room_code):
     serializer = ChallengeSerializer(challenge)
 
     return Response(serializer.data)
+
+@api_view(['POST'])
+def upload_submission(request):
+
+    challenge_id = request.data.get('challenge_id')
+    team_id = request.data.get('team_id')
+
+    image = request.FILES.get('image')
+
+    try:
+        challenge = Challenge.objects.get(id=challenge_id)
+        team = Team.objects.get(id=team_id)
+
+    except:
+        return Response(
+            {"error": "Invalid challenge or team"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    upload_result = cloudinary.uploader.upload(image)
+
+    submission = Submission.objects.create(
+        challenge=challenge,
+        team=team,
+        image_url=upload_result['secure_url']
+    )
+
+    return Response({
+        "message": "Submission uploaded",
+        "image_url": submission.image_url
+    })

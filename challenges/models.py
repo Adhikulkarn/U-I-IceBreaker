@@ -1,6 +1,6 @@
 from django.db import models
 from rooms.models import Room
-
+from teams.models import Team
 
 class Challenge(models.Model):
 
@@ -28,3 +28,25 @@ class Challenge(models.Model):
 
     def __str__(self):
         return self.title
+    
+from teams.models import Team
+
+
+class Submission(models.Model):
+
+    challenge = models.ForeignKey(
+        Challenge,
+        on_delete=models.CASCADE
+    )
+
+    team = models.ForeignKey(
+        Team,
+        on_delete=models.CASCADE
+    )
+
+    image_url = models.URLField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.team.name} Submission"
