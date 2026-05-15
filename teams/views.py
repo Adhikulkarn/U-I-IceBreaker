@@ -9,6 +9,9 @@ from players.models import Player
 from .models import Team
 from .serializers import TeamSerializer
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
 
 TEAM_NAMES = [
     "The Chaos Crew",
@@ -69,3 +72,51 @@ def generate_teams(request):
     serializer = TeamSerializer(teams, many=True)
 
     return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+@api_view(['POST'])
+def update_team_score(request):
+
+    team_id = request.data.get('team_id')
+    points = int(request.data.get('points', 0))
+
+    try:
+        team = Team.objects.get(id=team_id)
+
+    except Team.DoesNotExist:
+        return Response(
+            {"error": "Team not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    team.score += points
+    team.save()
+
+    leaderboard = Team.objects.filter(
+        room=team.room
+    ).order_by('-score')
+
+    leaderboard_data = [
+        {
+            "team_id": t.id,
+            "team_name": t.name,
+            "score": t.score
+        }
+        for t in leaderboard
+    ]
+
+    payload = {
+        "event": "LEADERBOARD_UPDATE",
+        "leaderboard": leaderboard_data
+    }
+
+    channel_layer = get_channel_layer()
+
+    async_to_sync(channel_layer.group_send)(
+        f"room_{team.room.code}",
+        {
+            "type": "game_update",
+            "message": payload
+        }
+    )
+
+    return Response(payload)
