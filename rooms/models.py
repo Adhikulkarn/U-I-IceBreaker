@@ -11,6 +11,11 @@ class Room(models.Model):
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=6, unique=True, default=generate_room_code)
     is_active = models.BooleanField(default=True)
+    current_round = models.IntegerField(default=0)
+    game_state = models.CharField(
+        max_length=20,
+        default='LOBBY'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
