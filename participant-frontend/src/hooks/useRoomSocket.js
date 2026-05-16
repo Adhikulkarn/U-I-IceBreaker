@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const WS_BASE_URL =
-  import.meta.env.VITE_WS_BASE_URL ?? "ws://127.0.0.1:8000/ws/game";
+const WS_BASE_URL = `${import.meta.env.VITE_WS_URL}/ws/game`;
 
 export default function useRoomSocket(roomCode, onMessage) {
   const onMessageRef = useRef(onMessage);

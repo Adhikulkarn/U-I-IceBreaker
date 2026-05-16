@@ -29,7 +29,7 @@ export default function useRoomSocket(roomCode, onMessage) {
       }
 
       const socket = new WebSocket(
-        `ws://127.0.0.1:8000/ws/game/${roomCode}/`
+        `${import.meta.env.VITE_WS_URL}/ws/game/${roomCode}/`
       );
 
       socketRef.current = socket;
