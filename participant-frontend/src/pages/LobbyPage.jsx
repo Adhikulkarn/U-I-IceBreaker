@@ -50,33 +50,42 @@ export default function LobbyPage() {
   const activeChallenge = gameState.activeChallenge;
 
   const loadParticipantState = useCallback(async (currentPlayerId, activeRoomCode) => {
-    const playerState = await getPlayerState(currentPlayerId);
+    if (!currentPlayerId || !activeRoomCode) return;
 
-    const normalizedState = normalizePlayerState(
-      playerState,
-      activeRoomCode,
-      gameState.player
-    );
+    try {
+      const playerState = await getPlayerState(currentPlayerId);
 
-    setGameState(normalizedState);
+      setGameState(prev => {
+        const normalizedState = normalizePlayerState(
+          playerState,
+          activeRoomCode,
+          prev.player
+        );
 
-    if (normalizedState.player?.id && normalizedState.player?.name) {
-      saveParticipantSession({
-        playerId: normalizedState.player.id,
-        roomCode: normalizedState.roomCode,
-        playerName: normalizedState.player.name,
+        if (normalizedState.player?.id && normalizedState.player?.name) {
+          saveParticipantSession({
+            playerId: normalizedState.player.id,
+            roomCode: normalizedState.roomCode,
+            playerName: normalizedState.player.name,
+          });
+        }
+        return normalizedState;
       });
+    } catch (requestError) {
+      if (requestError.response?.status === 404) {
+        clearSession();
+        resetGameState();
+        navigate("/", { replace: true });
+        return;
+      }
+      throw requestError;
     }
-
-    return {
-      playerState: normalizedState,
-    };
-  }, [gameState.player, setGameState]);
+  }, [navigate, resetGameState, setGameState]);
 
   useEffect(() => {
     const session = getParticipantSession();
 
-    if (!session) {
+    if (!session || !session.playerId || !session.roomCode) {
       navigate("/", { replace: true });
       return;
     }
@@ -90,6 +99,8 @@ export default function LobbyPage() {
       roomCode: session.roomCode,
     }));
 
+    let mounted = true;
+
     const hydrate = async () => {
       setLoading(true);
       setError("");
@@ -97,41 +108,54 @@ export default function LobbyPage() {
       try {
         await loadParticipantState(session.playerId, session.roomCode);
       } catch (requestError) {
+        if (!mounted) return;
+        
+        if (requestError.response?.status === 404) {
+          return;
+        }
+
         clearSession();
         setError(
           requestError.response?.data?.error ??
             "Unable to reconnect to this room."
         );
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     hydrate();
+
+    return () => {
+      mounted = false;
+    };
   }, [loadParticipantState, navigate]);
 
   const handleSocketMessage = useCallback(
     async (payload) => {
       if (payload.event === "ROOM_STATE_UPDATED") {
         const session = getParticipantSession();
-        const currentPlayer = gameState.player ??
-          (session
-            ? {
-                id: session.playerId,
-                name: session.playerName,
-              }
-            : null);
+        
+        setGameState(prev => {
+          const currentPlayer = prev.player ??
+            (session
+              ? {
+                  id: session.playerId,
+                  name: session.playerName,
+                }
+              : null);
 
-        setGameState(
-          normalizePlayerState(
+          return normalizePlayerState(
             {
               ...payload.state,
               player: currentPlayer,
             },
-            session?.roomCode ?? gameState.roomCode,
+            session?.roomCode ?? prev.roomCode,
             currentPlayer
-          )
-        );
+          );
+        });
         return;
       }
 
@@ -150,7 +174,7 @@ export default function LobbyPage() {
       if (payload.event === "TEAMS_GENERATED") {
         const session = getParticipantSession();
 
-        if (!session) {
+        if (!session || !session.playerId) {
           return;
         }
 
@@ -162,7 +186,8 @@ export default function LobbyPage() {
             session.roomCode
           );
         } catch (requestError) {
-          clearSession();
+          if (requestError.response?.status === 404) return;
+          
           setError(
             requestError.response?.data?.error ??
               "Unable to refresh your assigned team."
@@ -170,11 +195,12 @@ export default function LobbyPage() {
         } finally {
           setLoading(false);
         }
+        return;
       }
 
       setGameState((prev) => applyLegacyPlayerEvent(prev, payload));
     },
-    [gameState.player, gameState.roomCode, loadParticipantState, navigate, resetGameState, setGameState]
+    [loadParticipantState, navigate, resetGameState, setGameState]
   );
 
   useRoomSocket(roomCode, handleSocketMessage);

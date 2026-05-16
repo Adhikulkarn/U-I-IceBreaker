@@ -20,24 +20,34 @@ export default function JoinPage() {
   const [restoring, setRestoring] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     const restoreSession = async () => {
       const session = getParticipantSession();
 
-      if (!session) {
-        setRestoring(false);
+      if (!session || !session.playerId) {
+        if (mounted) setRestoring(false);
         return;
       }
 
       try {
         await getPlayerState(session.playerId);
-        navigate("/lobby", { replace: true });
-      } catch {
-        clearSession();
-        setRestoring(false);
+        if (mounted) {
+          navigate("/lobby", { replace: true });
+        }
+      } catch (err) {
+        if (mounted) {
+          clearSession();
+          setRestoring(false);
+        }
       }
     };
 
     restoreSession();
+
+    return () => {
+      mounted = false;
+    };
   }, [navigate]);
 
   const handleSubmit = async (event) => {
