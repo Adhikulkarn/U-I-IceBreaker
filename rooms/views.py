@@ -12,6 +12,14 @@ from challenges.models import Challenge
 
 from django.utils import timezone
 
+from players.models import Player
+from teams.models import Team
+
+from players.serializers import PlayerSerializer
+from teams.serializers import TeamSerializer
+
+from challenges.serializers import ChallengeSerializer
+
 @api_view(['POST'])
 def create_room(request):
     serializer = RoomSerializer(data=request.data)
@@ -74,3 +82,56 @@ def start_round(request):
     )
 
     return Response(payload)
+
+@api_view(['GET'])
+def get_room_state(request, room_code):
+
+    try:
+        room = Room.objects.get(code=room_code)
+
+    except Room.DoesNotExist:
+        return Response(
+            {"error": "Room not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    players = Player.objects.filter(room=room)
+
+    teams = Team.objects.filter(room=room)
+
+    active_challenge = Challenge.objects.filter(
+        room=room,
+        is_active=True
+    ).first()
+
+    leaderboard = Team.objects.filter(
+        room=room
+    ).order_by('-score')
+
+    return Response({
+
+        "room": {
+            "id": room.id,
+            "name": room.name,
+            "code": room.code,
+            "current_round": room.current_round,
+            "game_state": room.game_state,
+        },
+
+        "players": PlayerSerializer(players, many=True).data,
+
+        "teams": TeamSerializer(teams, many=True).data,
+
+        "active_challenge":
+            ChallengeSerializer(active_challenge).data
+            if active_challenge else None,
+
+        "leaderboard": [
+            {
+                "team_id": team.id,
+                "team_name": team.name,
+                "score": team.score,
+            }
+            for team in leaderboard
+        ]
+    })
