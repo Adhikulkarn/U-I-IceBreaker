@@ -1,0 +1,61 @@
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  html {
+    @apply bg-void;
+  }
+
+  body {
+    @apply m-0 min-h-screen bg-void bg-glow bg-grid bg-[size:32px_32px] text-white font-sans antialiased;
+  }
+
+  body::before {
+    content: "";
+    @apply pointer-events-none fixed inset-0 opacity-20;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.05),
+      rgba(255, 255, 255, 0.01) 35%,
+      rgba(0, 0, 0, 0.1) 36%,
+      rgba(0, 0, 0, 0.02) 37%
+    );
+    background-size: 100% 6px;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer components {
+  .pixel-corners {
+    clip-path: polygon(
+      0 10px,
+      10px 10px,
+      10px 0,
+      calc(100% - 10px) 0,
+      calc(100% - 10px) 10px,
+      100% 10px,
+      100% calc(100% - 10px),
+      calc(100% - 10px) calc(100% - 10px),
+      calc(100% - 10px) 100%,
+      10px 100%,
+      10px calc(100% - 10px),
+      0 calc(100% - 10px)
+    );
+  }
+
+  .text-shadow-neon {
+    text-shadow:
+      0 0 10px rgba(255, 79, 216, 0.5),
+      0 0 22px rgba(125, 255, 122, 0.3);
+  }
+}

@@ -2,25 +2,17 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import Room
-from .serializers import RoomSerializer
+from django.utils import timezone
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
 from challenges.models import Challenge
-
-from django.utils import timezone
-
-from players.models import Player
-from teams.models import Team
-
-from players.serializers import PlayerSerializer
-from teams.serializers import TeamSerializer
-
 from challenges.serializers import ChallengeSerializer
 
+from .models import Room
 from .serializers import RoomSerializer
+from .utils import build_room_state, broadcast_room_state
 
 @api_view(['POST'])
 def create_room(request):
@@ -63,16 +55,55 @@ def start_round(request):
 
     channel_layer = get_channel_layer()
 
-    payload = {
+    round_payload = {
         "event": "ROUND_STARTED",
-        "round": room.current_round,
-        "challenge": {
-            "title": challenge.title,
-            "description": challenge.description,
-            "type": challenge.challenge_type,
-            "duration": challenge.duration,
-            "started_at": room.round_started_at.isoformat()
+        "current_round": room.current_round,
+        "game_state": room.game_state,
+    }
+
+    async_to_sync(channel_layer.group_send)(
+        f"room_{room.code}",
+        {
+            "type": "game_update",
+            "message": round_payload
         }
+    )
+
+    challenge_payload = {
+        "event": "CHALLENGE_UPDATED",
+        "challenge": ChallengeSerializer(challenge).data
+    }
+
+    async_to_sync(channel_layer.group_send)(
+        f"room_{room.code}",
+        {
+            "type": "game_update",
+            "message": challenge_payload
+        }
+    )
+
+    broadcast_room_state(room)
+
+    return Response(round_payload)
+
+
+@api_view(['DELETE'])
+def delete_room(request, room_code):
+
+    try:
+        room = Room.objects.get(code=room_code)
+
+    except Room.DoesNotExist:
+        return Response(
+            {"error": "Room not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    channel_layer = get_channel_layer()
+
+    payload = {
+        "event": "ROOM_DELETED",
+        "room_code": room.code
     }
 
     async_to_sync(channel_layer.group_send)(
@@ -83,7 +114,9 @@ def start_round(request):
         }
     )
 
-    return Response(payload)
+    room.delete()
+
+    return Response({"message": "Room deleted"})
 
 @api_view(['GET'])
 def get_room_state(request, room_code):
@@ -97,46 +130,7 @@ def get_room_state(request, room_code):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    players = Player.objects.filter(room=room)
-
-    teams = Team.objects.filter(room=room)
-
-    active_challenge = Challenge.objects.filter(
-        room=room,
-        is_active=True
-    ).first()
-
-    leaderboard = Team.objects.filter(
-        room=room
-    ).order_by('-score')
-
-    return Response({
-
-        "room": {
-            "id": room.id,
-            "name": room.name,
-            "code": room.code,
-            "current_round": room.current_round,
-            "game_state": room.game_state,
-        },
-
-        "players": PlayerSerializer(players, many=True).data,
-
-        "teams": TeamSerializer(teams, many=True).data,
-
-        "active_challenge":
-            ChallengeSerializer(active_challenge).data
-            if active_challenge else None,
-
-        "leaderboard": [
-            {
-                "team_id": team.id,
-                "team_name": team.name,
-                "score": team.score,
-            }
-            for team in leaderboard
-        ]
-    })
+    return Response(build_room_state(room))
 
 @api_view(['GET'])
 def get_rooms(request):

@@ -1,15 +1,18 @@
 import cloudinary.uploader
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
 from rooms.models import Room
+from rooms.utils import broadcast_room_state
 from teams.models import Team
 
 from .models import Challenge, Submission
-from .serializers import ChallengeSerializer
-
+from .serializers import ChallengeSerializer, SubmissionSerializer
 
 @api_view(['POST'])
 def create_challenge(request):
@@ -40,6 +43,23 @@ def create_challenge(request):
     )
 
     serializer = ChallengeSerializer(challenge)
+
+    channel_layer = get_channel_layer()
+
+    payload = {
+        "event": "CHALLENGE_UPDATED",
+        "challenge": serializer.data
+    }
+
+    async_to_sync(channel_layer.group_send)(
+        f"room_{room.code}",
+        {
+            "type": "game_update",
+            "message": payload
+        }
+    )
+
+    broadcast_room_state(room)
 
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -101,3 +121,17 @@ def upload_submission(request):
         "message": "Submission uploaded",
         "image_url": submission.image_url
     })
+
+@api_view(['GET'])
+def get_submissions(request, challenge_id):
+
+    submissions = Submission.objects.filter(
+        challenge_id=challenge_id
+    ).order_by('-created_at')
+
+    serializer = SubmissionSerializer(
+        submissions,
+        many=True
+    )
+
+    return Response(serializer.data)

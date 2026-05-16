@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import generate_teams, update_team_score
+from .views import generate_teams, update_team_score, update_score
 
 urlpatterns = [
     path('generate/', generate_teams),
