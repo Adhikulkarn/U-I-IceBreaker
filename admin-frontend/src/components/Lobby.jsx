@@ -16,6 +16,7 @@ export default function Lobby() {
   const [rooms, setRooms] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [customScores, setCustomScores] = useState({});
+  const [loading, setLoading] = useState(false);
   const {
     gameState,
     setGameState,
@@ -29,6 +30,8 @@ export default function Lobby() {
   const leaderboard = gameState.leaderboard;
 
   const createRoom = async () => {
+
+    setLoading(true);
 
     try {
 
@@ -48,14 +51,18 @@ export default function Lobby() {
         response.data.code
       );
 
-      fetchRooms();
+      await fetchRooms();
 
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchRooms = async () => {
+
+    setLoading(true);
 
     try {
 
@@ -65,10 +72,14 @@ export default function Lobby() {
 
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const restoreRoom = async (roomCode) => {
+
+    setLoading(true);
 
     try {
 
@@ -85,6 +96,8 @@ export default function Lobby() {
       console.error(error);
 
       localStorage.removeItem("admin_room_code");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -152,6 +165,8 @@ export default function Lobby() {
 
     if (!confirmed) return;
 
+    setLoading(true);
+
     try {
 
       await api.delete(`/rooms/delete/${roomCode}/`);
@@ -166,10 +181,14 @@ export default function Lobby() {
 
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const generateTeams = async () => {
+
+    setLoading(true);
 
     try {
 
@@ -185,6 +204,8 @@ export default function Lobby() {
 
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -208,6 +229,8 @@ export default function Lobby() {
 
     if (!activeChallenge) return;
 
+    setLoading(true);
+
     try {
 
       const response = await api.post("/challenges/create/", {
@@ -225,10 +248,14 @@ export default function Lobby() {
 
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const startRound = async () => {
+
+    setLoading(true);
 
     try {
 
@@ -238,12 +265,16 @@ export default function Lobby() {
 
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchSubmissions = async () => {
 
     if (!activeChallenge?.id) return;
+
+    setLoading(true);
 
     try {
 
@@ -255,10 +286,14 @@ export default function Lobby() {
 
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const awardPoints = async (teamId, points) => {
+
+    setLoading(true);
 
     try {
 
@@ -272,6 +307,8 @@ export default function Lobby() {
     } catch (error) {
       console.error(error);
       return false;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -335,6 +372,12 @@ export default function Lobby() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white px-6 py-12 flex flex-col items-center">
 
+      {loading && (
+        <div className="fixed top-0 left-0 w-full h-1 bg-zinc-800 z-[100] overflow-hidden">
+          <div className="h-full bg-blue-500 animate-pulse w-full"></div>
+        </div>
+      )}
+
       <h1 className="text-5xl font-bold mb-8">
         U&I IceBreaker
       </h1>
@@ -382,14 +425,16 @@ export default function Lobby() {
 
                 <button
                   onClick={() => reconnectRoom(room.code)}
-                  className="mt-6 bg-blue-500 text-black px-5 py-3 rounded-xl font-bold w-full"
+                  disabled={loading}
+                  className="mt-6 bg-blue-500 text-black px-5 py-3 rounded-xl font-bold w-full disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Reconnect Room
                 </button>
 
                 <button
                   onClick={() => handleDeleteRoom(room.code)}
-                  className="mt-3 bg-red-500 text-black px-5 py-3 rounded-xl font-bold w-full"
+                  disabled={loading}
+                  className="mt-3 bg-red-500 text-black px-5 py-3 rounded-xl font-bold w-full disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Delete Room
                 </button>
@@ -412,14 +457,16 @@ export default function Lobby() {
             placeholder="Enter Room Name"
             value={roomName}
             onChange={(e) => setRoomName(e.target.value)}
-            className="px-4 py-3 rounded-xl bg-zinc-800 w-80 outline-none"
+            disabled={loading}
+            className="px-4 py-3 rounded-xl bg-zinc-800 w-80 outline-none disabled:opacity-50"
           />
 
           <button
             onClick={createRoom}
-            className="bg-white text-black px-6 py-3 rounded-xl font-semibold"
+            disabled={loading || !roomName.trim()}
+            className="bg-white text-black px-6 py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Create Room
+            {loading ? "Creating..." : "Create Room"}
           </button>
 
         </div>
@@ -441,14 +488,16 @@ export default function Lobby() {
 
             <button
               onClick={leaveRoom}
-              className="mt-6 bg-red-500 text-black px-5 py-2 rounded-xl font-bold"
+              disabled={loading}
+              className="mt-6 bg-red-500 text-black px-5 py-2 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Leave Room
             </button>
 
             <button
               onClick={() => handleDeleteRoom(roomData.code)}
-              className="mt-3 bg-red-700 text-white px-5 py-2 rounded-xl font-bold"
+              disabled={loading}
+              className="mt-3 bg-red-700 text-white px-5 py-2 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Delete Room
             </button>
@@ -463,14 +512,16 @@ export default function Lobby() {
               max="10"
               value={teamSize}
               onChange={(e) => setTeamSize(e.target.value)}
-              className="px-4 py-3 rounded-xl bg-zinc-800 w-32 outline-none text-center"
+              disabled={loading}
+              className="px-4 py-3 rounded-xl bg-zinc-800 w-32 outline-none text-center disabled:opacity-50"
             />
 
             <button
               onClick={generateTeams}
-              className="bg-green-500 text-black px-6 py-3 rounded-xl font-bold"
+              disabled={loading}
+              className="bg-green-500 text-black px-6 py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Generate Teams
+              {loading ? "Generating..." : "Generate Teams"}
             </button>
 
           </div>
@@ -577,7 +628,8 @@ export default function Lobby() {
                         <button
                           key={points}
                           onClick={() => awardPoints(team.id, points)}
-                          className="bg-yellow-400 text-black px-5 py-3 rounded-2xl font-bold flex-1"
+                          disabled={loading}
+                          className="bg-yellow-400 text-black px-5 py-3 rounded-2xl font-bold flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           +{points}
                         </button>
@@ -598,13 +650,15 @@ export default function Lobby() {
                         onChange={(e) =>
                           updateCustomScore(team.id, e.target.value)
                         }
+                        disabled={loading}
                         placeholder="1-10"
-                        className="bg-zinc-800 text-white px-4 py-3 rounded-2xl outline-none border border-zinc-700 flex-1"
+                        className="bg-zinc-800 text-white px-4 py-3 rounded-2xl outline-none border border-zinc-700 flex-1 disabled:opacity-50"
                       />
 
                       <button
                         onClick={() => handleCustomAward(team.id)}
-                        className="bg-yellow-400 text-black px-5 py-3 rounded-2xl font-bold sm:w-auto"
+                        disabled={loading || !customScores[team.id]}
+                        className="bg-yellow-400 text-black px-5 py-3 rounded-2xl font-bold sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Award
                       </button>
@@ -631,7 +685,8 @@ export default function Lobby() {
               <select
                 value={challengeType}
                 onChange={(e) => setChallengeType(e.target.value)}
-                className="px-4 py-3 rounded-xl bg-zinc-800 outline-none"
+                disabled={loading}
+                className="px-4 py-3 rounded-xl bg-zinc-800 outline-none disabled:opacity-50"
               >
                 <option value="PHOTO">PHOTO</option>
                 <option value="PITCH">PITCH</option>
@@ -642,30 +697,34 @@ export default function Lobby() {
 
                 <button
                   onClick={generateRandomChallenge}
-                  className="bg-blue-500 text-black px-6 py-3 rounded-xl font-bold"
+                  disabled={loading}
+                  className="bg-blue-500 text-black px-6 py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Generate Random Challenge
                 </button>
 
                 <button
                   onClick={createChallenge}
-                  className="bg-green-500 text-black px-6 py-3 rounded-xl font-bold"
+                  disabled={loading || !activeChallenge}
+                  className="bg-green-500 text-black px-6 py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Push Challenge
+                  {loading ? "Pushing..." : "Push Challenge"}
                 </button>
 
                 <button
                   onClick={startRound}
-                  className="bg-yellow-400 text-black px-6 py-3 rounded-xl font-bold"
+                  disabled={loading || !activeChallenge?.id}
+                  className="bg-yellow-400 text-black px-6 py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Start Round
+                  {loading ? "Starting..." : "Start Round"}
                 </button>
 
                 <button
                   onClick={fetchSubmissions}
-                  className="bg-purple-500 text-black px-6 py-3 rounded-xl font-bold"
+                  disabled={loading || !activeChallenge?.id}
+                  className="bg-purple-500 text-black px-6 py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Load Submissions
+                  {loading ? "Loading..." : "Load Submissions"}
                 </button>
 
               </div>
@@ -731,7 +790,8 @@ export default function Lobby() {
                             onClick={() =>
                               awardPoints(submission.team.id, points)
                             }
-                            className="bg-yellow-400 text-black px-5 py-3 rounded-xl font-bold"
+                            disabled={loading}
+                            className="bg-yellow-400 text-black px-5 py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             +{points}
                           </button>
