@@ -41,3 +41,4 @@ typing_extensions==4.15.0
 ujson==5.12.1
 urllib3==2.7.0
 zope.interface==8.4
+uvicorn[standard]==0.34.0
