@@ -1,10 +1,12 @@
 import { useState } from "react";
 import api from "../api/axios";
+import useRoomSocket from "../hooks/useRoomSocket";
 
 export default function Lobby() {
 
   const [roomName, setRoomName] = useState("");
   const [roomData, setRoomData] = useState(null);
+  const [players, setPlayers] = useState([]);
 
   const createRoom = async () => {
 
@@ -20,6 +22,17 @@ export default function Lobby() {
       console.error(error);
     }
   };
+
+  useRoomSocket(roomData?.code, (data) => {
+
+    if (data.event === "PLAYER_JOINED") {
+
+      setPlayers((prev) => [
+        ...prev,
+        data.player
+      ]);
+    }
+  });
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center gap-6">
@@ -56,6 +69,26 @@ export default function Lobby() {
 
         </div>
       )}
+
+      <div className="mt-6 w-80">
+
+        <h3 className="text-xl font-bold mb-3">
+          Joined Players
+        </h3>
+
+        <div className="flex flex-col gap-2">
+
+          {players.map((player) => (
+            <div
+              key={player.id}
+              className="bg-zinc-800 px-4 py-3 rounded-xl"
+            >
+              {player.name}
+            </div>
+          ))}
+
+        </div>
+      </div>
     </div>
   );
 }

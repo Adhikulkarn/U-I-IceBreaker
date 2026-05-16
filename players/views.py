@@ -9,6 +9,8 @@ from rooms.models import Room
 from .models import Player
 from .serializers import PlayerSerializer
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 @api_view(['POST'])
 def join_room(request):
@@ -29,5 +31,23 @@ def join_room(request):
     )
 
     serializer = PlayerSerializer(player)
+
+    channel_layer = get_channel_layer()
+
+    payload = {
+        "event": "PLAYER_JOINED",
+        "player": {
+            "id": player.id,
+            "name": player.name,
+        }
+    }
+
+    async_to_sync(channel_layer.group_send)(
+        f"room_{room.code}",
+        {
+            "type": "game_update",
+            "message": payload
+        }
+    )
 
     return Response(serializer.data, status=status.HTTP_201_CREATED)
