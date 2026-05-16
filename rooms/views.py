@@ -20,6 +20,8 @@ from teams.serializers import TeamSerializer
 
 from challenges.serializers import ChallengeSerializer
 
+from .serializers import RoomSerializer
+
 @api_view(['POST'])
 def create_room(request):
     serializer = RoomSerializer(data=request.data)
@@ -135,3 +137,17 @@ def get_room_state(request, room_code):
             for team in leaderboard
         ]
     })
+
+@api_view(['GET'])
+def get_rooms(request):
+
+    rooms = Room.objects.filter(
+        is_active=True
+    ).order_by('-created_at')
+
+    serializer = RoomSerializer(
+        rooms,
+        many=True
+    )
+
+    return Response(serializer.data)

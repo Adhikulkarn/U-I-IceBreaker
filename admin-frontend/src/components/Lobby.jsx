@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import api from "../api/axios";
 import useRoomSocket from "../hooks/useRoomSocket";
 import { challengeTemplates } from "../data/challengeTemplates";
@@ -16,6 +16,8 @@ export default function Lobby() {
   const [challengeType, setChallengeType] = useState("PHOTO");
   const [activeChallenge, setActiveChallenge] = useState(null);
 
+  const [rooms, setRooms] = useState([]);
+
   const createRoom = async () => {
 
     try {
@@ -26,10 +28,79 @@ export default function Lobby() {
 
       setRoomData(response.data);
 
+      localStorage.setItem(
+        "admin_room_code",
+        response.data.code
+      );
+
+      fetchRooms();
+
     } catch (error) {
       console.error(error);
     }
   };
+
+  const fetchRooms = async () => {
+
+    try {
+
+      const response = await api.get("/rooms/");
+
+      setRooms(response.data);
+
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const restoreRoom = async (roomCode) => {
+
+    try {
+
+      const response = await api.get(
+        `/rooms/state/${roomCode}/`
+      );
+
+      const data = response.data;
+
+      setRoomData(data.room);
+
+      setPlayers(data.players);
+
+      setTeams(data.teams);
+
+      setActiveChallenge(data.active_challenge);
+
+    } catch (error) {
+
+      console.error(error);
+
+      localStorage.removeItem("admin_room_code");
+    }
+  };
+
+  const reconnectRoom = async (roomCode) => {
+
+    localStorage.setItem(
+      "admin_room_code",
+      roomCode
+    );
+
+    await restoreRoom(roomCode);
+  };
+
+  useEffect(() => {
+
+    fetchRooms();
+
+    const savedRoomCode =
+      localStorage.getItem("admin_room_code");
+
+    if (savedRoomCode) {
+      restoreRoom(savedRoomCode);
+    }
+
+  }, []);
 
   useRoomSocket(roomData?.code, (data) => {
 
@@ -111,6 +182,13 @@ export default function Lobby() {
     }
   };
 
+  const leaveRoom = () => {
+
+    localStorage.removeItem("admin_room_code");
+
+    window.location.reload();
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white px-6 py-12 flex flex-col items-center">
 
@@ -118,7 +196,65 @@ export default function Lobby() {
         U&I IceBreaker
       </h1>
 
+      {rooms.length > 0 && !roomData && (
+
+        <div className="w-full max-w-6xl mb-12">
+
+          <h2 className="text-3xl font-bold mb-6 text-center">
+            Existing Rooms
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            {rooms.map((room) => (
+
+              <div
+                key={room.id}
+                className="bg-zinc-900 rounded-2xl p-6"
+              >
+
+                <h3 className="text-2xl font-bold">
+                  {room.name}
+                </h3>
+
+                <p className="text-4xl font-black mt-4 tracking-widest">
+                  {room.code}
+                </p>
+
+                <div className="mt-4 flex flex-col gap-2 text-zinc-300">
+
+                  <p>
+                    Players: {room.player_count}
+                  </p>
+
+                  <p>
+                    State: {room.game_state}
+                  </p>
+
+                  <p>
+                    Round: {room.current_round}
+                  </p>
+
+                </div>
+
+                <button
+                  onClick={() => reconnectRoom(room.code)}
+                  className="mt-6 bg-blue-500 text-black px-5 py-3 rounded-xl font-bold w-full"
+                >
+                  Reconnect Room
+                </button>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        </div>
+      )}
+
       {!roomData && (
+
         <div className="flex flex-col items-center gap-4">
 
           <input
@@ -142,6 +278,7 @@ export default function Lobby() {
       {roomData && (
 
         <>
+
           <div className="bg-zinc-900 p-6 rounded-2xl text-center">
 
             <h2 className="text-2xl font-bold">
@@ -151,6 +288,13 @@ export default function Lobby() {
             <p className="text-5xl mt-4 font-black tracking-widest">
               {roomData.code}
             </p>
+
+            <button
+              onClick={leaveRoom}
+              className="mt-6 bg-red-500 text-black px-5 py-2 rounded-xl font-bold"
+            >
+              Leave Room
+            </button>
 
           </div>
 
