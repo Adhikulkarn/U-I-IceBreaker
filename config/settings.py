@@ -138,13 +138,20 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 ASGI_APPLICATION = 'config.asgi.application'
 
+redis_url = os.getenv("REDIS_URL") or "redis://127.0.0.1:6379"
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-
         "CONFIG": {
             "hosts": [
-                os.getenv("REDIS_URL")
+                {
+                    "address": redis_url,
+                    "health_check_interval": 30,
+                    "socket_timeout": 10,
+                    "socket_connect_timeout": 5,
+                    "retry_on_timeout": True,
+                }
             ],
         },
     },
